@@ -1,0 +1,48 @@
+# The `service` block is the name of the service
+service: gnet
+
+custom:
+  tableName: 'bookstable-${self:provider.stage}'
+
+provider:
+  name: aws
+  runtime: nodejs10.x
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Scan
+        - dynamodb:Query
+        - dynamodb:PutItem
+        - dynamodb:GetItem
+        - dynamodb:DeleteItem
+        - dynamodb:UpdateItem
+      Resource:
+        - { "Fn::GetAtt": ["BooksDynamoDBTable", "Arn" ] }
+  region: us-east-1
+  environment:
+    BOOKS_TABLE: ${self:custom.tableName}
+
+functions:
+  app:
+    handler: index.handler
+    events:
+      - http: 'ANY {proxy+}'
+      - http: ANY /
+
+resources:
+  Resources:
+    BooksDynamoDBTable:
+      Type: 'AWS::DynamoDB::Table'
+      Properties:
+        AttributeDefinitions:
+          -
+            AttributeType: S
+            AttributeName: bookUuid
+        KeySchema:
+          -
+            KeyType: HASH
+            AttributeName: bookUuid
+        ProvisionedThroughput:
+          WriteCapacityUnits: 1
+          ReadCapacityUnits: 1
+        TableName: ${self:custom.tableName}
